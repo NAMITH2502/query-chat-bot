@@ -18,6 +18,7 @@ const Chat = () => {
   ]);
   const [input, setInput] = useState("");
   const [addMode, setAddMode] = useState(false);
+  const [mode, setMode] = useState(null); // "add", "update", or "delete"
   const [step, setStep] = useState(0);
   const [form, setForm] = useState({
     name: "",
@@ -27,12 +28,18 @@ const Chat = () => {
     phone: "",
   });
 
-  // inside Chat component
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chat]);
+
+  const resetState = () => {
+    setMode(null);
+    setAddMode(false);
+    setStep(0);
+    setForm({ name: "", role: "", department: "", email: "", phone: "" });
+  };
 
   const handleSend = async () => {
     if (!input.trim()) return;
@@ -41,8 +48,8 @@ const Chat = () => {
     setChat((prev) => [...prev, { sender: "user", text: userMessage }]);
     setInput("");
 
-    // 👉 If currently in add-employee mode
-    if (addMode) {
+   
+    if (addMode && (mode === "add" || mode === "update")) {
       const currentField = questions[step].field;
       const updatedForm = { ...form, [currentField]: userMessage };
       setForm(updatedForm);
@@ -56,30 +63,72 @@ const Chat = () => {
         ]);
       } else {
         try {
-          await axios.post(
-            "http://localhost:5000/api/employees/create",
-            updatedForm
-          );
-          setChat((prev) => [
-            ...prev,
-            { sender: "bot", text: "🎉 Employee added successfully!" },
-          ]);
+          if (mode === "add") {
+            await axios.post(
+              "http://localhost:5000/api/employees/create",
+              updatedForm
+            );
+            setChat((prev) => [
+              ...prev,
+              { sender: "bot", text: "🎉 Employee added successfully!" },
+            ]);
+          } else if (mode === "update") {
+            await axios.put(
+              `http://localhost:5000/api/employees/update/${updatedForm.name}`,
+              updatedForm
+            );
+            setChat((prev) => [
+              ...prev,
+              { sender: "bot", text: "🔁 Employee updated successfully!" },
+            ]);
+          }
         } catch {
           setChat((prev) => [
             ...prev,
-            { sender: "bot", text: "❌ Error adding employee." },
+            {
+              sender: "bot",
+              text: `❌ Error ${
+                mode === "add" ? "adding" : "updating"
+              } employee.`,
+            },
           ]);
         }
 
-        setAddMode(false);
-        setStep(0);
-        setForm({ name: "", role: "", department: "", email: "", phone: "" });
+        resetState();
       }
       return;
     }
 
-    // 🤖 creating
+    // Delete Mode
+    if (mode === "delete") {
+      const nameToDelete = userMessage;
+      try {
+        await axios.delete(
+          `http://localhost:5000/api/employees/delete/${nameToDelete}`
+        );
+        setChat((prev) => [
+          ...prev,
+          {
+            sender: "bot",
+            text: `🗑️ Deleted employee ${nameToDelete} successfully.`,
+          },
+        ]);
+      } catch {
+        setChat((prev) => [
+          ...prev,
+          {
+            sender: "bot",
+            text: `❌ Could not delete employee named ${nameToDelete}.`,
+          },
+        ]);
+      }
+      resetState();
+      return;
+    }
+
+    // Command detection
     if (/add.*employee/i.test(userMessage)) {
+      setMode("add");
       setAddMode(true);
       setStep(0);
       setChat((prev) => [
@@ -89,7 +138,30 @@ const Chat = () => {
       return;
     }
 
-    // 🔍 querying
+    if (/update.*employee/i.test(userMessage)) {
+      setMode("update");
+      setAddMode(true);
+      setStep(0);
+      setChat((prev) => [
+        ...prev,
+        { sender: "bot", text: questions[0].question },
+      ]);
+      return;
+    }
+
+    if (/delete.*employee/i.test(userMessage)) {
+      setMode("delete");
+      setChat((prev) => [
+        ...prev,
+        {
+          sender: "bot",
+          text: "Please enter the name of the employee to delete.",
+        },
+      ]);
+      return;
+    }
+
+    // Info fetch
     if (userMessage.toLowerCase().includes("employee")) {
       const nameMatch = userMessage.match(/employee\s+(\w+)/i);
       const fieldMatch = userMessage.match(/(phone|email|role|department)/i);
@@ -129,11 +201,12 @@ const Chat = () => {
       }
     }
 
+    // Fallback message
     setChat((prev) => [
       ...prev,
       {
         sender: "bot",
-        text: " ❓ I can add an employee or fetch their details. Try asking me!",
+        text: "❓ I can add, update, delete, or fetch employee details. Try commands like 'Add employee' or 'Update employee'.",
       },
     ]);
   };
@@ -142,17 +215,11 @@ const Chat = () => {
     <div style={styles.wrapper}>
       <div style={styles.chatContainer}>
         <div style={styles.header}>
-          💬 QueryBee{""}
-          <p
-            style={{
-              fontSize: "18px",
-            }}
-          >
-            🟢 I'm Online, shoot!
-          </p>
+          💬 QueryBee
+          <p style={{ fontSize: "18px" }}>🟢 I'm Online, shoot!</p>
         </div>
 
-        <div style={styles.messages} ref={messagesEndRef}>
+        <div style={styles.messages}>
           {chat.map((msg, idx) => (
             <div
               key={idx}
@@ -177,6 +244,7 @@ const Chat = () => {
               </div>
             </div>
           ))}
+          <div ref={messagesEndRef} />
         </div>
 
         <div style={styles.inputContainer}>
