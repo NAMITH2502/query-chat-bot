@@ -1,10 +1,16 @@
-QueryBee is an intelligent, interactive chatbot designed to manage employee information effortlessly. Built using React for the frontend and Express + MongoDB for the backend, QueryBee allows users to:
+QueryBee is an intelligent, interactive chatbot designed to manage employee information effortlessly. Built using React for the frontend and Express + MongoDB for the backend
 
-🧾 Add new employees through a conversational, step-by-step flow
+🧾 Current Features:
 
-🔍 Fetch specific details like phone number, role, or department of any employee
+Add, update, and delete employee records
 
-⚡ Handle user queries naturally using smart keyword detection
+Search employees by ID or other identifiers
+
+Keyword-based query handling for efficient operations
+
+🚀 In Progress:
+
+I am actively enhancing this project by integrating ChatGPT 3.5 Turbo and Ollama to transform it into a fully functional conversational bot, capable of handling natural language queries beyond keyword matching.
 
 💾 Store and retrieve data in real-time from a MongoDB database
 
